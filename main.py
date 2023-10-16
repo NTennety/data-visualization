@@ -1,26 +1,48 @@
-from dash import Dash, html, dash_table, dcc, callback, Output, Input
 import pandas as pd
 import plotly.express as px
-df = pd.read_csv('https://raw.githubusercontent.com/plotly/datasets/master/gapminder2007.csv')
+import dash
+import dash_core_components as dcc
+import dash_html_components as html
+from dash.dependencies import Input, Output
+import dash_bootstrap_components as dbc
 
-app = Dash(__name__)
+# Read the data
+df = pd.read_csv("annual_aqi_by_county_2022.csv")
+df2 = df.groupby('State')[['Median AQI' , 'Max AQI', '90th Percentile AQI']].mean().reset_index()
 
-app.layout = html.Div([
-    html.Div(children='My First App With Data'),
-    dash_table.DataTable(data=df.to_dict('records'),page_size=10),
-    dcc.Graph(figure=px.histogram(df, x='continent', y='lifeExp', histfunc='avg'))
+
+# Create the Dash app
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SOLAR])
+
+# Define the layout
+app.layout = dbc.Container([
+    dcc.Markdown("Web Application for Visualizing AQI Index by State"),
+        dcc.Dropdown(
+        id = 'y-axis',
+        options = [{'label': '90th Percentile AQI', 'value' : '90th Percentile AQI'}, {'label' : 'Max AQI', 'value' : 'Max AQI'}],
+        value = 'Median AQI',
+        clearable = False
+    ),
+    dcc.Dropdown(
+        id='plot-type',
+        options=[{'label': 'Bar Plot', 'value': 'Bar Plot'}, {'label': 'Scatter Plot', 'value': 'Scatter Plot'}],
+        value='Bar Plot',
+        clearable=False
+    ),
+    dcc.Graph(id='aqi-graph')
 ])
 
-@callback(
-    Output(component_id='controls-and-graph', component_property='figure'),
-    Input(component_id='controls-and-radio-item', component_property='value')
+@app.callback(
+    Output('aqi-graph', 'figure'),
+    Input('plot-type', 'value'),
+    Input('y-axis', 'value')
 )
-def update_graph(col_chosen):
-    fig = px.histogram(df, x='continent', y=col_chosen, histfunc='avg')
-    return fig
+def update_graph(plot_type, y_axis):
+    if plot_type == 'Bar Plot':
+        figure = px.bar(data_frame=df2, x='State', y=y_axis, title='Average Median AQI by State')
+    elif plot_type == 'Scatter Plot':
+        figure = px.scatter(data_frame=df2, x='State', y=y_axis, title='Average Median AQI by State')
+    return figure
 
 if __name__ == '__main__':
-    app.run(debug=True)
-# Actually runs the app
-if __name__ == '__main__':
-    app.run(debug=True)
+    app.run_server(port=8051)
